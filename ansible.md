@@ -422,3 +422,81 @@ Similar to conditionals, it is possible to create loops on playbook files. To cr
 		when: item.required == True
 		loop: "{{ packages }}"
 ```
+
+**Notice** that, when we use loops and give an array to it, on each iteration, we can use elements by using `item` key. To make it clearer, check the example above again.
+
+> Loop directive has recently added to Ansible. Previously we had `with_*` directive. `with_*` is a lookup plugin.
+
+Check the example below with `with_*` plugin:
+
+```yaml
+---
+- name: Install Softwares
+	hosts: all
+	tasks:
+		- name: Install "{{ item.name }}" on Debian
+			apt:
+				name: "{{ item.name }}"
+				state: present
+		when: item.required == True
+		with_packages:
+			- name: nginx
+				required: True
+			- name: mysql
+				required: True
+			- name: apache
+				required: False
+```
+
+## Ansible Modules
+
+Modules are tools that we can use on playbooks to operate desired operations. They are the key component for ansible. You can do various operations such as system level operations, or command typing etc.
+
+Popular module categories:
+
+	-	System
+	- Commands
+	- Files
+	- Database
+	- Cloud
+	- Windows
+
+Comprehensive list of modules can be found [here](https://docs.ansible.com/ansible/latest/collections/index_module.html).
+
+## Ansible Plugins
+
+Ansible plugins provide extensibility and customization options beyond the core Ansible features. An Ansible plugin is a piece of code that modifies the funcitonality of Ansible. Plugins provide a flexible and powerful way to tailor Ansible.
+
+	- Dynamic Inventory Plugin
+	- Module Plugin
+	- Action Plugin
+	- Other Plugins (lookup plugins, filter plugins, connection plugins etc.)
+
+Comprehensive list of plugins can be found [here](https://docs.ansible.com/ansible/latest/collections/index_inventory.html).
+
+## Ansible Handlers
+
+Ansible handlers helps us to automate repeated tasks by given instructions. Handlers run task(s) whenever we want to trigger them. In Ansible:
+
+	-	Tasks triggered by events/notifications.
+	- Handlers defined in playbooks, and they are executed when notified by a task
+	- They help us to manage actions based on system state/configuration changes
+
+As an example given below, we can see that, `notify` directive works as a trigger to make specific handler run after a given task. On this playbook, whenever we copy our application code, "Restart Application Service" handler will be executed after "Copy Application Code" task is done.
+
+```yml
+- name: Deploy Application
+	hosts: application_servers
+	tasks:
+		- name: Copy Application Code
+			copy:
+				src: app_code/
+				dest: /opt/application
+			notify: Restart Application Service
+	handlers:
+		- name: Restart Application Service
+			service:
+				name: application_service
+				state: restarted
+```
+
