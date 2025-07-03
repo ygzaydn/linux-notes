@@ -500,3 +500,151 @@ As an example given below, we can see that, `notify` directive works as a trigge
 				state: restarted
 ```
 
+**Important Note:** The key point here is understanding how handlers work in Ansible. When multiple tasks notify the same handler, the handler will only run once at the end of the playbook, regardless of how many tasks notify it.
+
+```yaml
+- name: Test Handler Execution
+  hosts: localhost
+  tasks:
+    - name: Copy file1.conf
+      copy:
+        src: files/file1.conf
+        dest: /tmp/file1.conf
+      notify: Sample Handler
+
+    - name: Copy file2.conf
+      copy:
+        src: files/file2.conf
+        dest: /tmp/file2.conf
+      notify: Sample Handler
+
+  handlers:
+    - name: Sample Handler
+      debug:
+        msg: "Handler has been triggered!"
+```
+
+Handler will be exetuced single time only when all tasks are done!
+
+## Roles in Ansible
+
+Roles let you automatically load related vars, files, tasks, handlers, and other Ansible artifacts based on a known file structure. After you group your content into roles, you can easily reuse them and share them with other users.
+
+To make it clearer, we can go through of an example. Assume that you have a database server and you make configuration for them. For future, we may need to add a new server to make database run on multiple servers. In such a case, it would be a good idea to define database initialization as a role, and use them when necessary.
+
+```yml
+tasks:
+	- name: Install Pre-Requistes
+		yum: name=pre-req-packages state=present
+	- name: Install MySQL packages
+		yum: name=mysql state=present
+	- name: Start MySQL service
+		yum: name=mysql state=started
+	- name: configure database
+		mysql_db: name=db1 state=present
+
+```
+
+Then, we can use this role in our playbooks (for other projects or same project, does not matter):
+
+```yml
+- name: Install and Configure MySQL
+	hosts: db-servers
+	roles:
+		- mysql
+
+```
+
+Roles helps to organize our operations. It is also a good platform to share your works for other Ansible users. For sharing and downloading roles, [galaxy](https://galaxy.ansible.com/ui/) is used. Ansible Galaxy is also a great tool to create roles in a structured way. By using `ansible-galaxy init <role-name>` helps us.
+
+Roles can be defined on host level or playbook level. Generally we would have a `roles` folder that contains information like that:
+
+```
+roles/
+    common/               # this hierarchy represents a "role"
+        tasks/            #
+            main.yml      #  <-- tasks file can include smaller files if warranted
+        handlers/         #
+            main.yml      #  <-- handlers file
+        templates/        #  <-- files for use with the template resource
+            ntp.conf.j2   #  <------- templates end in .j2
+        files/            #
+            bar.txt       #  <-- files for use with the copy resource
+            foo.sh        #  <-- script files for use with the script resource
+        vars/             #
+            main.yml      #  <-- variables associated with this role
+        defaults/         #
+            main.yml      #  <-- default lower priority variables for this role
+        meta/             #
+            main.yml      #  <-- role dependencies
+        library/          # roles can also include custom modules
+        module_utils/     # roles can also include custom module_utils
+        lookup_plugins/   # or other types of plugins, like lookup in this case
+
+    webtier/              # same kind of structure as "common" was above, done for the webtier role
+    monitoring/           # ""
+    fooapp/               # ""
+```
+
+Within our playbook, we can either move role folder to same directory that our playbook resides, or define path of role in our playbook. Roles folder stays in `/etc/ansible/roles` directory by default. 
+
+There are some useful commands with ansible galaxy:
+
+- `ansible-galaxy search <rolename>` to find related role
+- `ansible-galaxy install <rolename>` to install a role (role is extracted in default role directory)
+
+## Ansible Collections
+
+Collections are bundles of Ansible content: they can include modules, plugins, roles, playbooks, and documentation. A collection is a structured distribution format, usually focused on a specific domain, vendor, or purpose. Benefits of collections:
+
+-	Expanded functionality
+-	Modularity and Reuseability
+-	Simplified Distribution and Management
+
+```yaml
+- name: Install nginx
+  ansible.builtin.package:
+    name: nginx
+    state: present
+
+```
+
+Here:
+
+- ansible.builtin.package is a module
+- It might be part of the ansible.builtin collection
+
+
+To install a collection, we can use `ansible-galaxy collection install <name-of collection>` command. For a playbook that specifies collections in it, we can basically install them all by using `ansible-galaxy collection install -r <name-of-playbook>`.
+
+## Templating Tips
+
+As you remember, we use `Jinja` templating tool on Ansible. Below, you can find some tips related to templating (assume my_name value has value of *Bond*):
+
+- The name is {{ my_name }} => The name is Bond
+- The name is {{ my_name | upper }} => The name is BOND
+- The name is {{ my_name | lower }} => The name is bond
+- The name is {{ my_name | replace("Bond", "Bourne") }} => The name is Bourne
+- The name is {{ first_name | default("James") }} {{ my_name }} => The name is James Bond
+- {{ [1,2,3] | min }} => 1 (similarly we have `max, unique, union, intersect, random, join` methods)
+
+Loops in jinja: 
+```jinja
+{% for number in [0, 1,2,3,4] %}
+	{{ number }}
+{% endfor %}
+```
+
+Conditionals in jinja:
+```jinja
+{% for number in [0, 1,2,3,4] %}
+	{% if number == 2 %}
+		{{ number }}
+	{% endif %}
+{% endfor %}
+```
+## Useful Commands - Tips
+
+- ansible -i inventory node01 -m ping -v
+- ansible -i inventory all -m ping 
+- ansible-playbook -i localhost, command.yml -vv
